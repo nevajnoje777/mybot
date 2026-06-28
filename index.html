@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Hamster Clicker</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root {
+  --bg: #1a1a2e; --bg2: #16213e; --card: rgba(255,255,255,0.07);
+  --text: #ffffff; --text2: #aaaaaa; --accent: #a78bfa;
+  --accent2: #7c3aed; --gold: #fbbf24; --green: #4ade80;
+  --energy: #60a5fa; --border: rgba(255,255,255,0.08);
+}
+.light {
+  --bg: #f0f2f5; --bg2: #ffffff; --card: rgba(0,0,0,0.05);
+  --text: #1a1a2e; --text2: #666; --accent: #7c3aed;
+  --accent2: #5b21b6; --gold: #d97706; --green: #16a34a;
+  --energy: #2563eb; --border: rgba(0,0,0,0.1);
+}
+* { margin:0; padding:0; box-sizing:border-box; transition: background 0.3s, color 0.3s; }
+body { background:var(--bg); color:var(--text); font-family:'Segoe UI',sans-serif; min-height:100vh; overflow-x:hidden; }
+.header { display:flex; justify-content:space-between; align-items:center; padding:14px 18px; background:var(--bg2); border-bottom:1px solid var(--border); }
+.header-left { display:flex; align-items:center; gap:10px; }
+.username { font-size:15px; font-weight:700; }
+.header-right { display:flex; align-items:center; gap:10px; }
+.level-badge { background:var(--accent2); color:#fff; padding:4px 10px; border-radius:20px; font-size:11px; font-weight:700; }
+.theme-btn { background:none; border:none; font-size:20px; cursor:pointer; }
+.stats-bar { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; padding:12px 14px; }
+.stat-card { background:var(--card); border-radius:12px; padding:10px; text-align:center; border:1px solid var(--border); }
+.stat-label { font-size:10px; color:#f4a261; font-weight:700; text-transform:uppercase; }
+.stat-value { font-size:14px; font-weight:800; margin-top:3px; color:var(--text); }
+.coins-display { text-align:center; padding:16px 20px 8px; font-size:40px; font-weight:900; color:var(--text); }
+.coins-display span:first-child { font-size:34px; margin-right:6px; }
+.level-bar-wrap { padding:0 18px 8px; }
+.level-label { display:flex; justify-content:space-between; font-size:11px; color:var(--text2); margin-bottom:5px; }
+.level-bar { height:7px; background:var(--border); border-radius:99px; overflow:hidden; }
+.level-bar-fill { height:100%; background:linear-gradient(90deg,var(--green),var(--accent)); border-radius:99px; transition:width 0.5s; }
+.hamster-area { display:flex; justify-content:center; padding:8px 0 12px; position:relative; }
+.hamster-btn { width:200px; height:200px; border-radius:50%; background:radial-gradient(circle at 40% 35%,var(--accent2),#2d1b69); border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:90px; box-shadow:0 0 50px rgba(124,58,237,0.4); transition:transform 0.08s; position:relative; user-select:none; -webkit-user-select:none; overflow:visible; }
+.hamster-btn:active { transform:scale(0.92); }
+.hamster-btn.boosted { box-shadow:0 0 60px rgba(251,191,36,0.7); animation:pulse 0.5s infinite alternate; }
+@keyframes pulse { from{box-shadow:0 0 40px rgba(251,191,36,0.5)} to{box-shadow:0 0 80px rgba(251,191,36,0.9)} }
+.ripple { position:fixed; border-radius:50%; background:rgba(167,139,250,0.4); transform:scale(0); animation:rippleAnim 0.6s ease-out forwards; pointer-events:none; z-index:998; }
+@keyframes rippleAnim { to{transform:scale(4);opacity:0;} }
+.float-plus { position:fixed; font-size:20px; font-weight:900; color:var(--gold); pointer-events:none; animation:floatUp 0.9s ease-out forwards; z-index:999; text-shadow:0 2px 8px rgba(0,0,0,0.5); }
+@keyframes floatUp { 0%{opacity:1;transform:translateY(0) scale(1)} 50%{opacity:1;transform:translateY(-40px) scale(1.2)} 100%{opacity:0;transform:translateY(-80px) scale(0.8)} }
+.energy-bar-wrap { padding:0 18px 10px; }
+.energy-label { font-size:12px; color:var(--energy); margin-bottom:5px; display:flex; justify-content:space-between; }
+.energy-bar { height:6px; background:var(--border); border-radius:99px; overflow:hidden; }
+.energy-fill { height:100%; background:linear-gradient(90deg,var(--energy),var(--accent)); border-radius:99px; transition:width 0.3s; }
+.booster-area { padding:0 18px 12px; display:flex; gap:8px; }
+.booster-btn { flex:1; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:10px 8px; cursor:pointer; text-align:center; color:var(--text); }
+.booster-btn.active { background:rgba(251,191,36,0.15); border-color:var(--gold); }
+.booster-btn.ready { background:rgba(74,222,128,0.1); border-color:var(--green); }
+.booster-btn:disabled { opacity:0.5; cursor:default; }
+.booster-icon { font-size:22px; }
+.booster-label { font-size:10px; color:var(--text2); margin-top:3px; }
+.booster-cd { font-size:11px; font-weight:700; margin-top:2px; }
+.nav { display:flex; background:var(--bg2); border-top:1px solid var(--border); position:fixed; bottom:0; left:0; right:0; z-index:100; }
+.nav-btn { flex:1; padding:10px 4px 8px; background:none; border:none; color:var(--text2); font-size:10px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:3px; }
+.nav-btn.active { color:var(--accent); }
+.nav-icon { font-size:22px; }
+.page { display:none; padding:14px 14px 80px; }
+.page.active { display:block; }
+.page-home { padding-bottom:80px; }
+.section-title { font-size:17px; font-weight:800; margin-bottom:14px; color:var(--text); }
+.shop-item { background:var(--card); border-radius:14px; padding:14px 14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; border:1px solid var(--border); }
+.shop-item-info .name { font-weight:700; font-size:14px; color:var(--text); }
+.shop-item-info .desc { font-size:11px; color:var(--text2); margin-top:2px; }
+.shop-item-info .level { font-size:11px; color:var(--accent); margin-top:3px; font-weight:600; }
+.buy-btn { background:linear-gradient(135deg,var(--accent2),var(--accent)); border:none; color:#fff; padding:8px 12px; border-radius:10px; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap; }
+.buy-btn:disabled { background:var(--border); color:var(--text2); cursor:default; }
+.skin-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.skin-card { background:var(--card); border-radius:14px; padding:14px 10px; text-align:center; border:2px solid var(--border); cursor:pointer; }
+.skin-card.owned { border-color:var(--green); }
+.skin-card.active-skin { border-color:var(--gold); background:rgba(251,191,36,0.1); }
+.skin-emoji { font-size:44px; }
+.skin-name { font-size:11px; font-weight:700; margin-top:6px; color:var(--text); }
+.skin-price { font-size:11px; color:var(--gold); margin-top:3px; }
+.skin-btn { margin-top:8px; background:var(--accent2); border:none; color:#fff; padding:5px 10px; border-radius:8px; font-size:11px; font-weight:700; cursor:pointer; width:100%; }
+.skin-btn.equip { background:var(--green); color:#000; }
+.skin-btn:disabled { background:var(--border); color:var(--text2); cursor:default; }
+.top-item { display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--border); }
+.top-rank { font-size:22px; width:36px; text-align:center; }
+.top-name { font-weight:600; flex:1; color:var(--text); }
+.top-coins { color:var(--gold); font-weight:700; font-size:13px; }
+.profile-card { background:var(--card); border-radius:16px; padding:18px; margin-bottom:12px; border:1px solid var(--border); }
+.profile-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border); }
+.profile-row:last-child { border:none; }
+.profile-row .label { color:var(--text2); font-size:13px; }
+.profile-row .value { font-weight:700; font-size:13px; color:var(--text); }
+.toast { position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#22c55e; color:#fff; padding:10px 20px; border-radius:12px; font-weight:700; z-index:9999; opacity:0; transition:opacity 0.3s; pointer-events:none; font-size:14px; white-space:nowrap; }
+.toast.show { opacity:1; }
+.tabs { display:flex; gap:8px; margin-bottom:16px; }
+/* CHAT */
+.chat-wrap { display:flex; flex-direction:column; height:calc(100vh - 140px); }
+.chat-messages { flex:1; overflow-y:auto; padding:0 0 10px; display:flex; flex-direction:column; gap:8px; }
+.chat-msg { display:flex; align-items:flex-start; gap:8px; }
+.chat-msg.own { flex-direction:row-reverse; }
+.chat-avatar { font-size:26px; flex-shrink:0; }
+.chat-bubble { max-width:72%; background:var(--card); border:1px solid var(--border); border-radius:14px; padding:8px 12px; position:relative; }
+.chat-msg.own .chat-bubble { background:rgba(124,58,237,0.18); border-color:var(--accent2); }
+.chat-msg.owner-msg .chat-bubble { background:rgba(251,191,36,0.12); border-color:var(--gold); }
+.chat-name { font-size:11px; font-weight:700; color:var(--accent); margin-bottom:3px; }
+.chat-msg.owner-msg .chat-name { color:var(--gold); }
+.chat-text { font-size:13px; color:var(--text); word-break:break-word; }
+.chat-time { font-size:10px; color:var(--text2); margin-top:4px; }
+.chat-delete { position:absolute; top:4px; right:6px; background:none; border:none; font-size:13px; cursor:pointer; opacity:0.5; }
+.chat-delete:hover { opacity:1; }
+.chat-input-row { display:flex; gap:8px; padding:10px 0 0; border-top:1px solid var(--border); }
+.chat-input { flex:1; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:10px 14px; color:var(--text); font-size:14px; outline:none; }
+.chat-input::placeholder { color:var(--text2); }
+.chat-send-btn { background:linear-gradient(135deg,var(--accent2),var(--accent)); border:none; border-radius:12px; padding:10px 16px; color:#fff; font-size:18px; cursor:pointer; flex-shrink:0; }
+.tab { flex:1; padding:9px; background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--text2); font-size:13px; font-weight:600; cursor:pointer; text-align:center; }
+.tab.active { background:var(--accent2); color:#fff; border-color:var(--accent2); }
+* {
+-webkit-tap-highlight-color: transparent;
+-webkit-touch-callout: none;
+touch-action: manipulation;
+}
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+
+<!-- HOME -->
+<div id="page-home" class="page-home active">
+  <div class="header">
+    <div class="header-left">
+      <div class="username" id="username-display">🐹 Игрок</div>
+    </div>
+    <div class="header-right">
+      <div class="level-badge" id="level-name-display">Бронза</div>
+      <button class="theme-btn" onclick="toggleTheme()" id="theme-icon">🌙</button>
+    </div>
+  </div>
+  <div class="stats-bar">
+    <div class="stat-card"><div class="stat-label">За тап</div><div class="stat-value" id="stat-tap">+1</div></div>
+    <div class="stat-card"><div class="stat-label">До уровня</div><div class="stat-value" id="stat-next">—</div></div>
+    <div class="stat-card"><div class="stat-label">В час</div><div class="stat-value" id="stat-hour">+0</div></div>
+  </div>
+  <div class="coins-display"><span>💰</span><span id="coins-display">0</span></div>
+  <div class="level-bar-wrap">
+    <div class="level-label"><span id="level-label-left">Бронза</span><span id="level-label-right">1/10</span></div>
+    <div class="level-bar"><div class="level-bar-fill" id="level-bar-fill" style="width:0%"></div></div>
+  </div>
+  <div class="hamster-area">
+    <button class="hamster-btn" id="hamster-btn">🐹</button>
+  </div>
+  <div class="energy-bar-wrap">
+    <div class="energy-label"><span>⚡ Энергия</span><span id="energy-text">1000/1000</span></div>
+    <div class="energy-bar"><div class="energy-fill" id="energy-fill" style="width:100%"></div></div>
+  </div>
+  <div class="booster-area">
+    <button class="booster-btn ready" id="boost2x-btn" onclick="activateBoost(2)">
+      <div class="booster-icon">⚡</div>
+      <div class="booster-label">Буст x2</div>
+      <div class="booster-cd" id="boost2x-cd">Готов!</div>
+    </button>
+    <button class="booster-btn ready" id="boost5x-btn" onclick="activateBoost(5)">
+      <div class="booster-icon">🔥</div>
+      <div class="booster-label">Буст x5</div>
+      <div class="booster-cd" id="boost5x-cd">Готов!</div>
+    </button>
+    <button class="booster-btn ready" id="refill-btn" onclick="refillEnergy()">
+      <div class="booster-icon">🔋</div>
+      <div class="booster-label">Зарядка</div>
+      <div class="booster-cd" id="refill-cd">Готов!</div>
+    </button>
+  </div>
+</div>
+
+<!-- SHOP -->
+<div id="page-shop" class="page" style="padding-top:16px;padding-bottom:80px;">
+  <div class="tabs">
+    <div class="tab active" onclick="switchShopTab('upgrades',this)">⚡ Улучшения</div>
+    <div class="tab" onclick="switchShopTab('skins',this)">🎨 Скины</div>
+  </div>
+  <div id="shop-upgrades"></div>
+  <div id="shop-skins" style="display:none"></div>
+</div>
+
+<!-- TOP -->
+<div id="page-top" class="page" style="padding-top:16px;padding-bottom:80px;">
+  <div class="section-title">🏆 Топ игроков</div>
+  <div id="top-list"></div>
+</div>
+
+<!-- PROFILE -->
+<div id="page-profile" class="page" style="padding-top:16px;padding-bottom:80px;">
+  <div class="section-title">👤 Профиль</div>
+  <div class="profile-card" id="profile-content"></div>
+</div>
+
+<!-- CHAT -->
+<div id="page-chat" class="page" style="padding-top:16px;padding-bottom:80px;">
+  <div class="section-title">💬 Чат игроков</div>
+  <div class="chat-wrap">
+    <div class="chat-messages" id="chat-messages"></div>
+    <div class="chat-input-row">
+      <input class="chat-input" id="chat-input" type="text" placeholder="Написать сообщение..." maxlength="200">
+      <button class="chat-send-btn" onclick="sendChatMessage()">➤</button>
+    </div>
+  </div>
+</div>
+
+<nav class="nav">
+  <button class="nav-btn active" onclick="showPage('home',this)"><span class="nav-icon">🏠</span>Главная</button>
+  <button class="nav-btn" onclick="showPage('shop',this)"><span class="nav-icon">🏪</span>Магазин</button>
+  <button class="nav-btn" onclick="showPage('chat',this)"><span class="nav-icon">💬</span>Чат</button>
+  <button class="nav-btn" onclick="showPage('top',this)"><span class="nav-icon">🏆</span>Топ</button>
+  <button class="nav-btn" onclick="showPage('profile',this)"><span class="nav-icon">👤</span>Профиль</button>
+</nav>
+
+<script>
+const LEVELS=[{name:"Бронза",coins:0},{name:"Серебро",coins:5000},{name:"Золото",coins:25000},{name:"Платина",coins:100000},{name:"Алмаз",coins:500000},{name:"Эпик",coins:2000000},{name:"Легенда",coins:10000000},{name:"Мастер",coins:50000000},{name:"ГрандМастер",coins:200000000},{name:"Lord",coins:1000000000}];
+const UPGRADES={tap_boost:{name:"⚡ Усилитель тапа",desc:"Монет за тап +2",base_price:1000,pm:2.5,max:20},passive_income:{name:"🏭 Шахта",desc:"Пассивный доход/час",base_price:2000,pm:2.0,max:20},energy_boost:{name:"🔋 Энергия",desc:"Макс. энергия +500",base_price:5000,pm:2.2,max:10},crypto_exchange:{name:"💹 Крипто Биржа",desc:"Множитель дохода",base_price:50000,pm:3.0,max:5}};
+const SKINS=[
+  {id:"hamster",emoji:"🐹",name:"Хомяк",price:0,owned:true},
+  {id:"bear",emoji:"🐻",name:"Медведь",price:50000},
+  {id:"fox",emoji:"🦊",name:"Лиса",price:100000},
+  {id:"cat",emoji:"🐱",name:"Кот",price:150000},
+  {id:"dragon",emoji:"🐉",name:"Дракон",price:500000},
+  {id:"alien",emoji:"👾",name:"Пришелец",price:1000000},
+  {id:"robot",emoji:"🤖",name:"Робот",price:2000000},
+  {id:"crown",emoji:"👑",name:"Король",price:10000000},
+  {id:"fire",emoji:"🔥",name:"Огонь",price:50000000},
+];
+
+const tg=window.Telegram?.WebApp;
+tg?.expand();
+const BASE=window.location.origin;
+let uid=tg?.initDataUnsafe?.user?.id||"8642488748";
+let username=tg?.initDataUnsafe?.user?.first_name||"Игрок";
+let user=null;
+let boostMultiplier=1;
+let boostTimer=null;
+let boost2xCooldown=0;
+let boost5xCooldown=0;
+let refillCooldown=0;
+let ownedSkins=JSON.parse(localStorage.getItem("ownedSkins")||'["hamster"]');
+let activeSkin=localStorage.getItem("activeSkin")||"hamster";
+let isDark=localStorage.getItem("theme")!=="light";
+
+function applyTheme(){
+  document.body.classList.toggle("light",!isDark);
+  document.getElementById("theme-icon").textContent=isDark?"🌙":"☀️";
+}
+applyTheme();
+
+function toggleTheme(){isDark=!isDark;localStorage.setItem("theme",isDark?"dark":"light");applyTheme();}
+
+function fmt(n){if(n>=1e15)return"∞";if(n>=1e9)return(n/1e9).toFixed(1)+"B";if(n>=1e6)return(n/1e6).toFixed(1)+"M";if(n>=1e3)return(n/1e3).toFixed(1)+"K";return Math.floor(n).toString();}
+function getLevel(tc){let l=0;for(let i=0;i<LEVELS.length;i++)if(tc>=LEVELS[i].coins)l=i;return l;}
+function showToast(msg,color="#22c55e"){const t=document.getElementById("toast");t.textContent=msg;t.style.background=color;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2000);}
+
+function updateUI(){
+  if(!user)return;
+  const skin=SKINS.find(s=>s.id===activeSkin)||SKINS[0];
+  document.getElementById("hamster-btn").textContent=skin.emoji;
+  document.getElementById("coins-display").textContent=fmt(user.coins);
+  const tapVal=user.earn_per_tap*boostMultiplier;
+  document.getElementById("stat-tap").textContent="+"+fmt(tapVal)+(boostMultiplier>1?" 🔥":"");
+  document.getElementById("stat-hour").textContent="+"+fmt(user.coins_per_hour);
+  document.getElementById("username-display").textContent=skin.emoji+" "+username;
+  document.getElementById("energy-text").textContent=Math.floor(user.energy)+"/"+user.max_energy;
+  document.getElementById("energy-fill").style.width=(user.energy/user.max_energy*100)+"%";
+  const li=getLevel(user.total_coins);
+  const ln=LEVELS[li];
+  document.getElementById("level-name-display").textContent=ln.name;
+  document.getElementById("level-label-left").textContent=ln.name;
+  document.getElementById("level-label-right").textContent=(li+1)+"/"+LEVELS.length;
+  const next=LEVELS[li+1];
+  if(next){
+    const prog=(user.total_coins-ln.coins)/(next.coins-ln.coins)*100;
+    document.getElementById("level-bar-fill").style.width=Math.min(100,prog)+"%";
+    document.getElementById("stat-next").textContent=fmt(next.coins-user.total_coins);
+  } else {
+    document.getElementById("level-bar-fill").style.width="100%";
+    document.getElementById("stat-next").textContent="MAX";
+  }
+  updateBoosterUI();
+}
+
+function fmtTime(s){if(s<=0)return"Готов!";const m=Math.floor(s/60);const sec=s%60;return m>0?`${m}м ${sec}с`:`${sec}с`;}
+
+function updateBoosterUI(){
+  const b2=document.getElementById("boost2x-btn");
+  const b5=document.getElementById("boost5x-btn");
+  const rf=document.getElementById("refill-btn");
+  const now=Date.now()/1000;
+  const cd2=Math.max(0,boost2xCooldown-now);
+  const cd5=Math.max(0,boost5xCooldown-now);
+  const cdr=Math.max(0,refillCooldown-now);
+  document.getElementById("boost2x-cd").textContent=boostMultiplier===2?"Активен!":fmtTime(Math.ceil(cd2));
+  document.getElementById("boost5x-cd").textContent=boostMultiplier===5?"Активен!":fmtTime(Math.ceil(cd5));
+  document.getElementById("refill-cd").textContent=fmtTime(Math.ceil(cdr));
+  b2.className="booster-btn"+(boostMultiplier===2?" active":cd2<=0?" ready":"");
+  b5.className="booster-btn"+(boostMultiplier===5?" active":cd5<=0?" ready":"");
+  rf.className="booster-btn"+(cdr<=0?" ready":"");
+  b2.disabled=boostMultiplier>1||cd2>0;
+  b5.disabled=boostMultiplier>1||cd5>0;
+  rf.disabled=cdr>0;
+}
+
+function activateBoost(mult){
+  const now=Date.now()/1000;
+  if(mult===2&&boost2xCooldown>now)return;
+  if(mult===5&&boost5xCooldown>now)return;
+  if(boostMultiplier>1)return;
+  boostMultiplier=mult;
+  document.getElementById("hamster-btn").classList.add("boosted");
+  showToast(`🔥 Буст x${mult} активен на 30 секунд!`,"#f59e0b");
+  if(boostTimer)clearTimeout(boostTimer);
+  boostTimer=setTimeout(()=>{
+    boostMultiplier=1;
+    document.getElementById("hamster-btn").classList.remove("boosted");
+    showToast("⚡ Буст закончился","#6b7280");
+    updateUI();
+  },30000);
+  if(mult===2)boost2xCooldown=now+3600;
+  if(mult===5)boost5xCooldown=now+3600;
+  localStorage.setItem("boost2xCd",boost2xCooldown);
+  localStorage.setItem("boost5xCd",boost5xCooldown);
+  updateUI();
+}
+
+function refillEnergy(){
+  const now=Date.now()/1000;
+  if(refillCooldown>now)return;
+  if(!user)return;
+  user.energy=user.max_energy;
+  refillCooldown=now+3600;
+  localStorage.setItem("refillCd",refillCooldown);
+  showToast("🔋 Энергия восстановлена!","#3b82f6");
+  updateUI();
+}
+
+boost2xCooldown=parseFloat(localStorage.getItem("boost2xCd")||0);
+boost5xCooldown=parseFloat(localStorage.getItem("boost5xCd")||0);
+refillCooldown=parseFloat(localStorage.getItem("refillCd")||0);
+
+async function loadUser(){
+  try{
+    const r=await fetch(BASE+"/api/user/"+uid+"?username="+encodeURIComponent(username));
+    user=await r.json();
+    updateUI();
+  }catch(e){console.error(e);}
+}
+
+document.getElementById("hamster-btn").addEventListener("click",async function(e){
+  if(!user||user.energy<=0){showToast("⚡ Нет энергии!","#ef4444");return;}
+  const x=e.clientX;const y=e.clientY;
+  const ripple=document.createElement("div");
+  ripple.className="ripple";
+  const size=60;
+  ripple.style.cssText=`width:${size}px;height:${size}px;left:${x-size/2}px;top:${y-size/2}px;`;
+  document.body.appendChild(ripple);
+  setTimeout(()=>ripple.remove(),600);
+  const earned=user.earn_per_tap*boostMultiplier;
+  const el=document.createElement("div");
+  el.className="float-plus";
+  el.textContent="+"+fmt(earned)+(boostMultiplier>1?"🔥":"");
+  el.style.left=x+"px";el.style.top=y+"px";
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),900);
+  user.coins+=earned;user.total_coins+=earned;
+  user.energy=Math.max(0,user.energy-1);
+  updateUI();
+  try{
+    const r=await fetch(BASE+"/api/tap",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({uid,count:1,multiplier:boostMultiplier})});
+    const d=await r.json();
+    if(d.error==="no_energy")return;
+    user.coins=d.coins;user.energy=d.energy;updateUI();
+  }catch(e){}
+});
+
+function showPage(name,btn){
+  document.querySelectorAll(".page,.page-home").forEach(p=>p.classList.remove("active"));
+  document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
+  if(name==="home")document.querySelector(".page-home").classList.add("active");
+  else document.getElementById("page-"+name).classList.add("active");
+  btn.classList.add("active");
+  if(name==="shop")renderShop();
+  if(name==="top")loadTop();
+  if(name==="profile")renderProfile();
+  if(name==="chat"){loadChat();if(!chatInterval)chatInterval=setInterval(loadChat,4000);}
+  else{if(chatInterval){clearInterval(chatInterval);chatInterval=null;}}
+}
+
+function switchShopTab(tab,el){
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  el.classList.add("active");
+  document.getElementById("shop-upgrades").style.display=tab==="upgrades"?"block":"none";
+  document.getElementById("shop-skins").style.display=tab==="skins"?"block":"none";
+  if(tab==="skins")renderSkins();
+}
+
+function getUpgradePrice(id,level){const u=UPGRADES[id];return Math.floor(u.base_price*(u.pm**level));}
+
+function renderShop(){if(!user)return;const list=document.getElementById("shop-upgrades");list.innerHTML="";for(const[id,upg]of Object.entries(UPGRADES)){const cur=user.upgrades[id]||0;const isMax=cur>=upg.max;const price=isMax?0:getUpgradePrice(id,cur);const canAfford=user.coins>=price;list.innerHTML+=`<div class="shop-item"><div class="shop-item-info"><div class="name">${upg.name}</div><div class="desc">${upg.desc}</div><div class="level">Уровень ${cur}/${upg.max}</div></div><button class="buy-btn" ${isMax||!canAfford?"disabled":""} onclick="buyUpgrade('${id}')">Купить ${isMax?"МАКС":"💰"+fmt(price)}</button></div>`;}}
+
+function renderSkins(){const grid=document.getElementById("shop-skins");grid.innerHTML=`<div class="skin-grid">${SKINS.map(s=>{const owned=ownedSkins.includes(s.id);const isActive=activeSkin===s.id;const canAfford=user&&user.coins>=s.price;let btn="";if(isActive)btn=`<button class="skin-btn equip" disabled>✓ Надет</button>`;else if(owned)btn=`<button class="skin-btn equip" onclick="equipSkin('${s.id}')">Надеть</button>`;else btn=`<button class="skin-btn" ${!canAfford?"disabled":""} onclick="buySkin('${s.id}')">💰${fmt(s.price)}</button>`;return`<div class="skin-card ${owned?"owned":""} ${isActive?"active-skin":""}"><div class="skin-emoji">${s.emoji}</div><div class="skin-name">${s.name}</div>${!owned?`<div class="skin-price">💰${fmt(s.price)}</div>`:""} ${btn}</div>`;}).join("")}</div>`;}
+
+function buySkin(id){const skin=SKINS.find(s=>s.id===id);if(!skin||!user||user.coins<skin.price){showToast("❌ Мало монет!","#ef4444");return;}user.coins-=skin.price;ownedSkins.push(id);localStorage.setItem("ownedSkins",JSON.stringify(ownedSkins));equipSkin(id);showToast("🎉 Скин куплен!");renderSkins();updateUI();}
+
+function equipSkin(id){activeSkin=id;localStorage.setItem("activeSkin",id);updateUI();renderSkins();showToast("✅ Скин надет!");}
+
+async function buyUpgrade(id){const r=await fetch(BASE+"/api/upgrade",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({uid,upgrade_id:id})});const d=await r.json();if(d.error){showToast(d.error==="not_enough"?"❌ Мало монет!":"Ошибка","#ef4444");return;}user=d;updateUI();renderShop();showToast("✅ Улучшено!");}
+
+async function loadTop(){const r=await fetch(BASE+"/api/top");const top=await r.json();const medals=["🥇","🥈","🥉","🏅","🏅","🏅","🏅","🏅","🏅","🏅"];document.getElementById("top-list").innerHTML=top.map((u,i)=>`<div class="top-item"><div class="top-rank">${medals[i]}</div><div class="top-name">${u.username}</div><div class="top-coins">💰 ${fmt(u.total_coins)}</div></div>`).join("");}
+
+function renderProfile(){if(!user)return;const li=getLevel(user.total_coins);const skin=SKINS.find(s=>s.id===activeSkin)||SKINS[0];document.getElementById("profile-content").innerHTML=`<div class="profile-row"><span class="label">👤 Имя</span><span class="value">${username}</span></div><div class="profile-row"><span class="label">🎨 Скин</span><span class="value">${skin.emoji} ${skin.name}</span></div><div class="profile-row"><span class="label">🏆 Уровень</span><span class="value">${LEVELS[li].name} (${li+1}/10)</span></div><div class="profile-row"><span class="label">💰 Монеты</span><span class="value">${fmt(user.coins)}</span></div><div class="profile-row"><span class="label">📈 Всего заработано</span><span class="value">${fmt(user.total_coins)}</span></div><div class="profile-row"><span class="label">⚡ За тап</span><span class="value">${fmt(user.earn_per_tap)}</span></div><div class="profile-row"><span class="label">🏭 В час</span><span class="value">${fmt(user.coins_per_hour)}</span></div><div class="profile-row"><span class="label">👆 Всего тапов</span><span class="value">${fmt(user.total_taps)}</span></div><div class="profile-row"><span class="label">🔋 Энергия</span><span class="value">${Math.floor(user.energy)}/${user.max_energy}</span></div>`;}
+
+// ===== CHAT =====
+const OWNER_ID="8642488748";
+let chatInterval=null;
+
+function fmtChatTime(ts){const d=new Date(ts*1000);const h=d.getHours().toString().padStart(2,'0');const m=d.getMinutes().toString().padStart(2,'0');return h+':'+m;}
+
+async function loadChat(){
+  try{
+    const r=await fetch(BASE+"/api/chat");
+    const msgs=await r.json();
+    renderChat(msgs);
+  }catch(e){console.error(e);}
+}
+
+function renderChat(msgs){
+  const box=document.getElementById("chat-messages");
+  const wasAtBottom=box.scrollHeight-box.scrollTop-box.clientHeight<60;
+  box.innerHTML=msgs.map(msg=>{
+    const isOwn=String(msg.uid)===String(uid);
+    const isOwnerMsg=msg.is_owner;
+    let classes="chat-msg";
+    if(isOwn)classes+=" own";
+    if(isOwnerMsg)classes+=" owner-msg";
+    const nameLabel=isOwnerMsg?"👑 "+msg.username:msg.username;
+    const deleteBtn=String(uid)===OWNER_ID?`<button class="chat-delete" onclick="deleteChatMsg(${msg.time})">✕</button>`:"";
+    return`<div class="${classes}"><div class="chat-avatar">${msg.skin||"🐹"}</div><div class="chat-bubble">${deleteBtn}<div class="chat-name">${nameLabel}</div><div class="chat-text">${escapeHtml(msg.text)}</div><div class="chat-time">${fmtChatTime(msg.time)}</div></div></div>`;
+  }).join("");
+  if(wasAtBottom)box.scrollTop=box.scrollHeight;
+}
+
+function escapeHtml(t){return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+
+async function sendChatMessage(){
+  const input=document.getElementById("chat-input");
+  const text=input.value.trim();
+  if(!text)return;
+  if(!user){showToast("❌ Подождите загрузки","#ef4444");return;}
+  const skin=SKINS.find(s=>s.id===activeSkin)||SKINS[0];
+  input.value="";
+  try{
+    await fetch(BASE+"/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({uid,username,skin:skin.emoji,text})});
+    await loadChat();
+  }catch(e){showToast("❌ Ошибка отправки","#ef4444");}
+}
+
+async function deleteChatMsg(time){
+  try{
+    await fetch(BASE+"/api/chat/delete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({uid,time})});
+    await loadChat();
+  }catch(e){}
+}
+
+document.getElementById("chat-input").addEventListener("keydown",function(e){if(e.key==="Enter")sendChatMessage();});
+
+setInterval(()=>{if(user&&user.energy<user.max_energy){user.energy=Math.min(user.max_energy,user.energy+1);updateUI();}},3000);
+setInterval(updateBoosterUI,1000);
+loadUser();
+</script>
+</body>
+</html>
