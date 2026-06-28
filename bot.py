@@ -2,7 +2,7 @@ import telebot
 from telebot import types
 
 BOT_TOKEN = "8767133042:AAGzicAUQxYnEF0FEEdEsF2PiG2mU-EXN_E"
-MINI_APP_URL = "https://9ea2851e1f2cae.lhr.life"
+MINI_APP_URL = "https://mybot-gkck.onrender.com"
 CHANNEL = "@Dev_HamsterClicker"
 
 bot = telebot.TeleBot(BOT_TOKEN)
